@@ -1,0 +1,23 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <BitmapImage  x:Key="FolderIcon" UriSource="../images/Generic-Green-icon32_32.png"></BitmapImage >
+    <BitmapImage  x:Key="LockedFolderIcon" UriSource="../images/Lock-icon32_32.png"></BitmapImage >
+    <BitmapImage  x:Key="UnknownIcon" UriSource="../images/shark-icon.png"></BitmapImage >
+    <BitmapImage  x:Key="UpFolderIcon" UriSource="../images/go-back-icon32_32.png"></BitmapImage >
+
+    <BitmapImage  x:Key="FtpLinkIcon" UriSource="../images/page-link-icon.png"></BitmapImage >
+
+
+    <BitmapImage  x:Key="UnknownDrive" UriSource="../images/Signs-Help-icon32_32.png"></BitmapImage >
+    <BitmapImage  x:Key="NoRootDirectoryDrive" UriSource="../images/Signs-Help-icon32_32.png"></BitmapImage >
+    <BitmapImage  x:Key="RemovableDrive" UriSource="../images/Hardware-USB-key-icon32_32.png"></BitmapImage >
+    <BitmapImage  x:Key="FixedDrive" UriSource="../images/Hardware-Drive-icon32_32.png"></BitmapImage >
+    <BitmapImage  x:Key="NetworkDrive" UriSource="../images/Network-Web-icon32_32.png"></BitmapImage >
+    <BitmapImage  x:Key="CDRomDrive" UriSource="../images/Disc-icon32_32.png"></BitmapImage >
+    <BitmapImage  x:Key="RamDrive" UriSource="../images/Folders-Developer-Folder-icon32_32.png"></BitmapImage >
+
+    <BitmapImage  x:Key="FtpDrive" UriSource="../images/Nero-Smart-Start-icon.png"></BitmapImage >
+
+    <BitmapImage  x:Key="ModuleLogo" UriSource="../images/Computer-Green-Space-icon.png"></BitmapImage >
+
+</ResourceDictionary>

@@ -1,0 +1,16 @@
+﻿<UserControl x:Class="Grizli.BookmarkPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="40" d:DesignWidth="418">
+    <Grid>
+        <ToolBarPanel>
+            <ToolBar>
+                <Button Content="Button" HorizontalAlignment="Left" Margin="0,0,0,0" Name="button1" VerticalAlignment="Top" />
+            </ToolBar>
+        </ToolBarPanel>
+        
+    </Grid>
+</UserControl>
