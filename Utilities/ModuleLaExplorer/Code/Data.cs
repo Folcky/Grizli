@@ -195,10 +195,8 @@ namespace LaExplorer.Code
     {
         private ObservableCollection<Item> _isource;
         public event PropertyChangedEventHandler PropertyChanged;
-        //public string sPath { get; set; }
         private ParentItem _connection_description;
         public ParentItem Connection_description { get { return _connection_description; } set { _connection_description = value; } }
-        //public string sSourceType { get; set; }
         public ObservableCollection<Item> iSource
         {
             get { return _isource; }
@@ -421,4 +419,6 @@ namespace LaExplorer.Code
         LOGON32_PROVIDER_WINNT40 = 2,
         LOGON32_PROVIDER_WINNT50 = 3
     }
+
+    
 }

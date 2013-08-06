@@ -27,6 +27,27 @@ using System.Runtime.ConstrainedExecution;
 
 namespace LaExplorer.Code
 {
+    public interface IAccessor
+    {
+        Protocols Protocol();
+        Source GetItems(Item diritem);
+        void DefineIcons(IEnumerable<Item> item, TaskScheduler scheduler);
+        string GetItemsStatus();
+        Source InitItems();
+        Stream GetReadStream(Item item);
+        Stream GetWriteStream(ParentItem destination, Item item);
+    }
+
+    public abstract class AccessorFactory
+    {
+        public static IAccessor GetAccessor(ObservableCollection<IAccessor> accessors, Protocols protocol)
+        {
+            return (from ac in accessors
+                   where ac.Protocol() == protocol
+                   select ac).FirstOrDefault();
+        }
+    }
+
     public class Accessor
     {
         public Accessor()
@@ -77,6 +98,39 @@ namespace LaExplorer.Code
                     select l.Image).FirstOrDefault();
         }
 
+        public int MMM2MM(string MMM)
+        {
+            switch (MMM.ToLower())
+            {
+                default:
+                    return 1;
+                case ("jan"):
+                    return 1;
+                case ("feb"):
+                    return 2;
+                case ("mar"):
+                    return 3;
+                case ("apr"):
+                    return 4;
+                case ("may"):
+                    return 5;
+                case ("jun"):
+                    return 6;
+                case ("jul"):
+                    return 7;
+                case ("aug"):
+                    return 8;
+                case ("sep"):
+                    return 9;
+                case ("oct"):
+                    return 10;
+                case ("nov"):
+                    return 11;
+                case ("dec"):
+                    return 12;
+            }
+        }
+
         private WindowsPrincipal _principal;
         public WindowsPrincipal Principal
         {
@@ -102,38 +156,7 @@ namespace LaExplorer.Code
             }
         }
 
-        public int MMM2MM(string MMM)
-        {
-            switch (MMM.ToLower())
-            {
-                default:
-                    return 1;
-                case("jan"):
-                    return 1;
-                case ("feb"):
-                    return 2;
-                case ("mar"):
-                    return 3;
-                case("apr"):
-                    return 4;
-                case ("may"):
-                    return 5;
-                case ("jun"):
-                    return 6;
-                case ("jul"):
-                    return 7;
-                case ("aug"):
-                    return 8;
-                case ("sep"):
-                    return 9;
-                case ("oct"):
-                    return 10;
-                case ("nov"):
-                    return 11 ;
-                case ("dec"):
-                    return 12;
-            }
-        }
+        
 
         public bool CheckListAccess(WindowsIdentity user, WindowsPrincipal principal, DirectoryInfo directory)
         {

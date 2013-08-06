@@ -342,14 +342,14 @@ namespace LaExplorer.Views
         public void PublishBookmark(Explorer bookmark_explorer, string bookmark)
         { 
             List<string> commands = new List<string>();
-            string path1 = String.Format("{0}|{1}|{2}", bookmark_explorer.s.Connection_description.Protocol, bookmark_explorer.s.Connection_description.ConnectionName, bookmark);
+            string path1 = String.Format("{0}|{1}|{2}", bookmark_explorer.ListItems.Connection_description.Protocol, bookmark_explorer.ListItems.Connection_description.ConnectionName, bookmark);
             commands.Add(path1);
             foreach (Explorer ssource in this.PanelsInfo.sSources)
             {
                 if (ssource != bookmark_explorer)
                 {
                     path1 = "";
-                    path1 = String.Format("{0}|{1}|{2}", ssource.s.Connection_description.Protocol, ssource.s.Connection_description.ConnectionName, ssource.s.Connection_description.Path);
+                    path1 = String.Format("{0}|{1}|{2}", ssource.ListItems.Connection_description.Protocol, ssource.ListItems.Connection_description.ConnectionName, ssource.ListItems.Connection_description.Path);
                     commands.Add( path1 );
                 }
             }

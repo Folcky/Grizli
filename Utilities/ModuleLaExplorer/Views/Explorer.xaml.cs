@@ -24,6 +24,8 @@ using Microsoft.VisualBasic.FileIO;
 using LaExplorer.Code;
 using LaExplorer.Windows;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows.Controls.Primitives;
 
 namespace LaExplorer.Views
 {
@@ -32,8 +34,12 @@ namespace LaExplorer.Views
     /// </summary>
     public partial class Explorer : UserControl, IDisposable
     {
+        TaskScheduler scheduler = TaskScheduler.FromCurrentSynchronizationContext();
 
-        ObservableCollection<Item> sourcik = new ObservableCollection<Item>();
+        //Accessors to Local, FTP, Network paths
+        //Filled in "static Explorer()"
+        ObservableCollection<IAccessor> accessors = new ObservableCollection<IAccessor>();
+        
         Container Parent_container { get; set; }
 
         double verticaloffset=0;
@@ -48,6 +54,10 @@ namespace LaExplorer.Views
         {
             InitializeComponent();
 
+            accessors.Add(new LocalClient());
+            accessors.Add(new NetworkClient());
+            accessors.Add(new FTPClient());
+
             Protocols protocol_type;
             try
             {
@@ -58,17 +68,13 @@ namespace LaExplorer.Views
             string connection_name = command != "" ? command.Split('|').ElementAt(1) : null;
             string path = command != "" ? command.Split('|').ElementAt(2) : null;
 
-            file_watcher.Created += new FileSystemEventHandler(OnPanelUpdated);
-            file_watcher.Deleted += new FileSystemEventHandler(OnPanelUpdated);
-            file_watcher.Changed += new FileSystemEventHandler(OnPanelUpdated);
-            file_watcher.Renamed += new RenamedEventHandler(OnPanelUpdated);
-            
             appdata_watcher.Created += new FileSystemEventHandler(OnAppDataUpdated);
             appdata_watcher.Deleted += new FileSystemEventHandler(OnAppDataUpdated);
             appdata_watcher.Changed += new FileSystemEventHandler(OnAppDataUpdated);
             appdata_watcher.Renamed += new RenamedEventHandler(OnAppDataUpdated);
             //usb_watcher.Changed += new USBWatcher.ChangedEventHandler(OnUSBUpdated);
             //usb_watcher.EnableRaisingEvents = true;
+
             if (protocol_type == Protocols.LOCAL)
             {
                 FileAttributes attr;
@@ -79,7 +85,7 @@ namespace LaExplorer.Views
                 catch { attr = FileAttributes.Directory; }
                 if (path==null || path.Trim() == "" || (attr & FileAttributes.Directory) == FileAttributes.Directory)
                 {
-                    GetItems(new Item { Type = FileTypes.FOLDER, sFullName = path, Parent = new ParentItem() { Protocol = protocol_type } });
+                    InitItems();
                 }
                 else
                     GetItems(new Item { Type = FileTypes.FILE, sFullName = path, Parent = new ParentItem() { Protocol = protocol_type } });
@@ -92,11 +98,8 @@ namespace LaExplorer.Views
 
         protected int eventCounter = 0;
         private Accessor accessor = new Accessor();
-        FileSystemWatcher file_watcher = new FileSystemWatcher();
         FileSystemWatcher appdata_watcher = new FileSystemWatcher(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + @"\Grizli");
         //USBWatcher usb_watcher = new USBWatcher();
-
-        public Source s = new Source();
 
         static Explorer()
         {
@@ -159,12 +162,11 @@ namespace LaExplorer.Views
                 CPanelChanged(this, e);
         }
 
-
         public void ExecuteCommand(string command)
         {
             if (command == null || command == "home" || command.Trim() == "")
             {
-                GetItems(new Item { Type = FileTypes.FOLDER });
+                InitItems();
                 this.Parent_container.PublishPath(this, "");
             }
             Regex local_path = new Regex(@"^\D{1,1}:(\\{1,1}\D{0,})?");
@@ -174,69 +176,118 @@ namespace LaExplorer.Views
             }
         }
 
+        public void InitItems()
+        {
+            try 
+            {
+                Source old_source = new Source();
+                ParentItem parentitem = new ParentItem();
+                parentitem.Protocol = Protocols.LOCAL;
+                old_source.Connection_description = parentitem;
+                old_source.iSource = new ObservableCollection<Item>();
+                foreach (IAccessor ac in accessors)
+                {
+                    foreach (Item item in ac.InitItems().iSource)
+                    {
+                        old_source.iSource.Add(item);
+                    }
+                }
+                if (old_source.iSource != null && old_source.iSource.Count()>0)
+                {
+                    lvList.ItemsSource = old_source.iSource;
+                    this.ListItems = old_source;
+                    if (sbPanelInfo.HasItems == true)
+                        sbPanelInfo.Items[0] = "";
+                    else
+                        sbPanelInfo.Items.Add(ListItems.iSource.Count());
+
+                    DelegateGetImagesForItems _updateimages = GetImagesForItems;
+                    Application.Current.Dispatcher.BeginInvoke(_updateimages, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                }
+            }
+            catch { }
+
+        }
+
         public void GetItems(Item senderitem)
         {
             try
             {
-                if (senderitem.Type == FileTypes.FOLDER || senderitem.Type == FileTypes.FTPLINK)
+                Source old_source=null;
+                if (senderitem.sFullName == "")
                 {
-                    Source old_source = accessor.GetItems(senderitem);
-                    if (old_source.iSource != null)
-                    {
-                        s = old_source;
-                        DelegateGetImagesForItems _updateimages = GetImagesForItems;
-                        Application.Current.Dispatcher.BeginInvoke(_updateimages, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-
-                        if (s.iSource != null)
-                        {
-                            sourcik = s.iSource;
-                            lvList.ItemsSource = sourcik;
-                            if (s.Connection_description.Path != null && s.Connection_description.Path != "" && s.Connection_description.Protocol == Protocols.LOCAL)
-                            {
-                                file_watcher.Path = s.Connection_description.Path;
-                                file_watcher.Filter = "*.*";
-                                file_watcher.IncludeSubdirectories = false;
-                                file_watcher.EnableRaisingEvents = true;
-                                appdata_watcher.EnableRaisingEvents = false;
-                                //usb_watcher.EnableRaisingEvents = false;
-
-                            }
-                            else
-                            {
-                                file_watcher.EnableRaisingEvents = false;
-                                appdata_watcher.EnableRaisingEvents = true;
-                                //usb_watcher.EnableRaisingEvents = true;
-                            }
-                            this.ListItems = s;
-                            if (sbPanelInfo.HasItems == true)
-                                sbPanelInfo.Items[0] = (from l in sourcik
-                                                        where //l.Protocol == "local" && 
-                                                        l.Type == FileTypes.FILE
-                                                        select l).Count() + " files " +
-                                                           (from l in sourcik
-                                                            where //l.Protocol == "local" && 
-                                                            l.Type == FileTypes.FOLDER || l.Type == FileTypes.FTPLINK
-                                                            select l).Count() + " directories";
-                            else
-                                sbPanelInfo.Items.Add(sourcik.Count());
-                        }
-                    }
+                    InitItems();
+                    return;
                 }
                 else
                 {
-                    try
-                    {
-                        DelegateStartProccess _startproccess = StartProccess;
-                        Application.Current.Dispatcher.BeginInvoke(_startproccess, System.Windows.Threading.DispatcherPriority.Background, senderitem);
-                    }
-                    catch
-                    { }
+                    IAccessor ac = AccessorFactory.GetAccessor(accessors, senderitem.Parent.Protocol);
+                    old_source = ac.GetItems(senderitem);
                 }
+                
+                if (old_source.iSource != null)
+                {
+                    lvList.ItemsSource = old_source.iSource;
+                    this.ListItems = old_source;
+                    //if (sbPanelInfo.HasItems == true)
+                    //    sbPanelInfo.Items[0] = ac.GetItemsStatus();
+                    //else
+                    //    sbPanelInfo.Items.Add(ListItems.iSource.Count());
+                    GetImagesForItems();
+                    //DelegateGetImagesForItems _updateimages = GetImagesForItems;
+                    //Application.Current.Dispatcher.BeginInvoke(_updateimages, System.Windows.Threading.DispatcherPriority.Background);
+                }
+
+
+                //    if (senderitem.Type == FileTypes.FOLDER || senderitem.Type == FileTypes.FTPLINK)
+                //    {
+                //        IAccessor ac = AccessorFactory.GetAccessor(accessors, senderitem.Parent.Protocol);
+                //        Source old_source = ac.GetItems(senderitem);
+                //        if (old_source.iSource != null)
+                //        {
+                //            s = old_source;
+                //            DelegateGetImagesForItems _updateimages = GetImagesForItems;
+                //            Application.Current.Dispatcher.BeginInvoke(_updateimages, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+
+                //            if (s.iSource != null)
+                //            {
+                //                iSource = s.iSource;
+                //                lvList.ItemsSource = iSource;
+                //                if (s.Connection_description.Path != null && s.Connection_description.Path != "" && s.Connection_description.Protocol == Protocols.LOCAL)
+                //                {
+                //                    appdata_watcher.EnableRaisingEvents = false;
+                //                    //usb_watcher.EnableRaisingEvents = false;
+                //                }
+                //                else
+                //                {
+                //                    appdata_watcher.EnableRaisingEvents = true;
+                //                    //usb_watcher.EnableRaisingEvents = true;
+                //                }
+                                // this.ListItems = s;
+                //                if (sbPanelInfo.HasItems == true)
+                //                    sbPanelInfo.Items[0] = ac.GetItemsStatus();
+                //                else
+                //                    sbPanelInfo.Items.Add(iSource.Count());
+                //            }
+                //        }
+                //    }
+                //    else
+                //    {
+                //        try
+                //        {
+                //            DelegateStartProccess _startproccess = StartProccess;
+                //            Application.Current.Dispatcher.BeginInvoke(_startproccess, System.Windows.Threading.DispatcherPriority.Background, senderitem);
+                //        }
+                //        catch
+                //        { }
+                //    }
+                //}
+                //catch (Exception error)
+                //{
+                //    MessageBox.Show(error.Message);
+                //}
             }
-            catch (Exception error)
-            {
-                MessageBox.Show(error.Message);
-            }
+            catch { }
         }
 
         private delegate void DelegateStartProccess(Item args);
@@ -324,13 +375,6 @@ namespace LaExplorer.Views
             Application.Current.Dispatcher.BeginInvoke(_updatedir, System.Windows.Threading.DispatcherPriority.Background, e);
         }
 
-        private delegate void DelegateDirUpdater(FileSystemEventArgs args);
-        private void OnPanelUpdated(object sender, FileSystemEventArgs e)
-        {
-            DelegateDirUpdater _updatedir = RefreshItems;
-            Application.Current.Dispatcher.BeginInvoke(_updatedir, System.Windows.Threading.DispatcherPriority.Background, e);
-        }
-        
         private delegate void DelegateDriveUpdater(EventArgs e);
         private void OnUSBUpdated(object sender, EventArgs e)
         {
@@ -351,97 +395,25 @@ namespace LaExplorer.Views
                                             && l.iImage == null
                                             select l;
 
-
-            IEnumerable<Item> locals = from l in to_proccess
-                                      where l.Parent.Protocol == Protocols.LOCAL
-                                      select l;
-
-            foreach (Item _lvitem in locals)
+            foreach (Protocols protocol in to_proccess.Select(s=>s.Parent.Protocol).Distinct())
             {
-                switch (_lvitem.Type)
+                IAccessor ac = AccessorFactory.GetAccessor(accessors, protocol);
+                if (ac != null)
                 {
-                    case FileTypes.FILE:
-                        if (_lvitem.iImage == null)
-                            _lvitem.iImage = accessor.GetIcon(new FileInfo(_lvitem.sFullName));
-                        break;
-                    case FileTypes.FOLDER:
-                        if (_lvitem.iImage == null && _lvitem.sFullName != null && _lvitem.sFullName != "")
-                            _lvitem.iImage = accessor.CheckListAccess(accessor.User, accessor.Principal, new DirectoryInfo(_lvitem.sFullName)) ? accessor.GetPredefinedImage("FolderIcon") : accessor.GetPredefinedImage("LockedFolderIcon");
-                        break;
+                    IEnumerable<Item> to_proccess_with_protocol = to_proccess.Where(w => w.Parent.Protocol == protocol);
+                    //Async method
+                    ac.DefineIcons(to_proccess_with_protocol, scheduler);
                 }
             }
 
-            IEnumerable<Item> networks = from l in to_proccess
-                                       where l.Parent.Protocol == Protocols.NETWORK
-                                       select l;
-            IEnumerable<ParentItem> parent_networks = networks.Select(p => p.Parent).Distinct();
-
-            foreach (ParentItem _parent_item in parent_networks)
-            {
-                ImpersonateUser ui = new ImpersonateUser();
-                WindowsIdentity impersonated_user = ui.Impersonate(_parent_item.Domain, _parent_item.User, _parent_item.Password);
-                foreach (Item _lvitem in networks)
-                {
-                    switch (_lvitem.Type)
-                    {
-                        case FileTypes.FILE:
-                            if (_lvitem.iImage == null)
-                                _lvitem.iImage = accessor.GetIcon(new FileInfo(@"\\" + _lvitem.Parent.Host + @"\" + _lvitem.sFullName));
-                            break;
-                        //case FileTypes.FOLDER:
-                        //    if (_lvitem.iImage == null && _lvitem.sFullName != null && _lvitem.sFullName != "")
-                        //        _lvitem.iImage = accessor.CheckListAccess(impersonated_user, new WindowsPrincipal(impersonated_user), new DirectoryInfo(_lvitem.sFullName)) ? accessor.GetPredefinedImage("FolderIcon") : accessor.GetPredefinedImage("LockedFolderIcon");
-                        //        _lvitem.iImage = accessor.GetPredefinedImage("FolderIcon");
-                        //    break;
-                    }
-                }
-                ui.Undo();
-            }
-
-            IEnumerable<Item> ftps = from l in to_proccess
-                                         where l.Parent.Protocol == Protocols.FTP
-                                         select l;
-            foreach (Item _lvitem in ftps)
-            {
-                if (_lvitem.iImage == null)
-                    _lvitem.iImage = accessor.GetIcon(new FileInfo(_lvitem.sName));
-            }
-        }
-
-        private void RefreshItems(FileSystemEventArgs args)
-        {
-            switch (args.ChangeType)
-            {
-                case WatcherChangeTypes.Created:
-                    try
-                    {
-                        Item created = accessor.GetItem(args.FullPath);
-                        if (created != null)
-                        {
-                            FileInfo created_file = new FileInfo(created.sFullName);
-                            if (created != null && created_file.DirectoryName == s.Connection_description.Path)
-                                sourcik.Add(created);
-                        }
-                    }
-                    catch { }
-                    break;
-                case WatcherChangeTypes.Renamed:
-                    Item record = (from r in sourcik
-                                   where r.sFullName == ((RenamedEventArgs)args).OldFullPath
-                                   select r).FirstOrDefault();
-                    record.sName = record.Type == FileTypes.FOLDER ? (new DirectoryInfo(((RenamedEventArgs)args).FullPath)).Name : (new FileInfo(((RenamedEventArgs)args).FullPath)).Name;
-                    record.sFullName = ((RenamedEventArgs)args).FullPath;
-                    break;
-                case WatcherChangeTypes.Deleted:
-                    Item to_delete = (from r in sourcik
-                                      where r.sFullName == args.FullPath
-                                      select r).FirstOrDefault();
-                    sourcik.Remove(to_delete);
-                    break;
-                //default:
-                //TODO
-                //break;
-            }
+            //IEnumerable<Item> ftps = from l in to_proccess
+            //                             where l.Parent.Protocol == Protocols.FTP
+            //                             select l;
+            //foreach (Item _lvitem in ftps)
+            //{
+            //    if (_lvitem.iImage == null)
+            //        _lvitem.iImage = accessor.GetIcon(new FileInfo(_lvitem.sName));
+            //}
         }
 
         public void Move(ref ListViewItem sender)
@@ -453,8 +425,15 @@ namespace LaExplorer.Views
         {
             try
             {
-                if (e.LeftButton == MouseButtonState.Pressed)
-                    GetItems((Item)((ListViewItem)sender).Content);
+                if (sender.GetType() == typeof(ListViewItem) && e.LeftButton == MouseButtonState.Pressed)
+                {
+                    ListViewItem listviewitem = sender as ListViewItem;
+                    if (listviewitem.Content != null && listviewitem.Content.GetType() == typeof(Item))
+                    {
+                        Item choosed_item = listviewitem.Content as Item;
+                        GetItems(choosed_item);
+                    }
+                }
             }
             catch (Exception error)
             {
@@ -524,7 +503,7 @@ namespace LaExplorer.Views
                     break;
                 case Key.F5:
                     ObservableCollection<Item> selected_items = new ObservableCollection<Item>(((ListView)sender).SelectedItems.Cast<Item>());
-                    if (this.s.Connection_description.Path != "" && selected_items.Count()>0)
+                    if (ListItems.Connection_description.Path != "" && selected_items.Count()>0)
                     {
                         ObservableCollection<string> paths = new ObservableCollection<string>(from l in Parent_container.PanelsInfo.sSources
                                                                                               where l.ListItems.Connection_description.Path != null
@@ -715,8 +694,10 @@ namespace LaExplorer.Views
             //Container.SetRotation(sender, 2);
             foreach (Item item in whattodo.FileList)
             {
-                Stream read_stream;
-                Stream write_stream;
+                IAccessor ac_reader = AccessorFactory.GetAccessor(accessors, item.Parent.Protocol);
+                IAccessor ac_writer = AccessorFactory.GetAccessor(accessors, whattodo.Destination.Protocol);
+                Stream read_stream = ac_reader.GetReadStream(item);
+                Stream write_stream = ac_writer.GetWriteStream(whattodo.Destination, item);
 
                 //UPLOAD FTP
                 if (item.Parent.Protocol == Protocols.LOCAL && item.Type == FileTypes.FILE && whattodo.Destination.Protocol == Protocols.FTP)
@@ -855,20 +836,20 @@ namespace LaExplorer.Views
 
         private void NameAsc_Click(object sender, RoutedEventArgs e)
         {
-            sourcik = new ObservableCollection<Item>(
-                (from m in sourcik.OrderBy(p => p.sName)
+            ListItems.iSource = new ObservableCollection<Item>(
+                (from m in ListItems.iSource.OrderBy(p => p.sName)
                  where m.Type == FileTypes.FOLDER
                  select m).Union(
-                from m in sourcik.OrderBy(p => p.sName)
+                from m in ListItems.iSource.OrderBy(p => p.sName)
                 where m.Type == FileTypes.FTPLINK
                 select m
                 ).Union(
-                from m in sourcik.OrderBy(p => p.sName)
+                from m in ListItems.iSource.OrderBy(p => p.sName)
                 where m.Type == FileTypes.FILE
                 select m
                 )
                 );
-            lvList.ItemsSource = sourcik;
+            lvList.ItemsSource = ListItems.iSource;
         }
 
         private void AddFTP_Click(object sender, RoutedEventArgs e)
@@ -887,24 +868,24 @@ namespace LaExplorer.Views
 
         private void NameDesc_Click(object sender, RoutedEventArgs e)
         {
-            sourcik = new ObservableCollection<Item>((from m in sourcik.OrderByDescending(p => p.sName)
+            ListItems.iSource = new ObservableCollection<Item>((from m in ListItems.iSource.OrderByDescending(p => p.sName)
                                                       where m.Type == FileTypes.FOLDER
                                                       select m).Union(
-                from m in sourcik.OrderByDescending(p => p.sName)
+                from m in ListItems.iSource.OrderByDescending(p => p.sName)
                 where m.Type == FileTypes.FTPLINK
                 select m
                 ).Union(
-                from m in sourcik.OrderByDescending(p => p.sName)
+                from m in ListItems.iSource.OrderByDescending(p => p.sName)
                 where m.Type == FileTypes.FILE
                 select m
                 ));
-            lvList.ItemsSource = sourcik;
+            lvList.ItemsSource = ListItems.iSource;
         }
 
         private void lvList_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
             //MessageBox.Show("menu");
-            if (s.Connection_description.Path == null || s.Connection_description.Path == "")
+            if (ListItems.Connection_description.Path == null || ListItems.Connection_description.Path == "")
             {
                 ContextMenu _firstmenu = (ContextMenu)this.TryFindResource("FirstMenu");
                 _firstmenu.IsOpen = true;
@@ -955,7 +936,7 @@ namespace LaExplorer.Views
 
         private void UserControl_GotFocus(object sender, RoutedEventArgs e)
         {
-            this.Parent_container.PublishPath(this, s.Connection_description.Path);
+            this.Parent_container.PublishPath(this, ListItems.Connection_description.Path);
         }
 
         private void lvList_KeyDown(object sender, KeyEventArgs e)

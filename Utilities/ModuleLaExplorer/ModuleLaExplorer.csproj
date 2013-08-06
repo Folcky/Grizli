@@ -67,8 +67,12 @@
     <Compile Include="Code\Accessor.cs" />
     <Compile Include="Code\Converters.cs" />
     <Compile Include="Code\Data.cs" />
+    <Compile Include="Code\FSClient.cs" />
+    <Compile Include="Code\FTPClient.cs" />
     <Compile Include="Code\GridViewSort.cs" />
     <Compile Include="Code\IconExtractor.cs" />
+    <Compile Include="Code\LocalClient.cs" />
+    <Compile Include="Code\NetworkClient.cs" />
     <Compile Include="Code\PageTransition.xaml.cs">
       <DependentUpon>PageTransition.xaml</DependentUpon>
     </Compile>
