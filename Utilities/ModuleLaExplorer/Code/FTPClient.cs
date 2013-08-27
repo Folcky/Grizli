@@ -22,6 +22,7 @@ namespace LaExplorer.Code
 
     public class FTPClient : IAccessor
     {
+        #region May should be inherited from FSClient
         private Protocols _protocol = Protocols.FTP;
         public Protocols Protocol()
         {
@@ -89,7 +90,9 @@ namespace LaExplorer.Code
             }
             catch { return new BitmapImage(); }
         }
+        #endregion May should be inherited from FSClient
 
+        #region Get items from Ftp server
         public Source InitItems()
         {
             Source result = new Source();
@@ -126,7 +129,6 @@ namespace LaExplorer.Code
             CurrentItems = result;
             return result;
         }
-
         public Source GetItems(Item diritem)
         {
             Source result = new Source();
@@ -173,7 +175,6 @@ namespace LaExplorer.Code
             }
             return result;
         }
-
         private StreamReader GetFTPStream(bool IsPassive, string url, ICredentials login_info)
         {
             FtpWebRequest reqFTP;
@@ -188,7 +189,6 @@ namespace LaExplorer.Code
             WebResponse response = reqFTP.GetResponse();
             return new StreamReader(response.GetResponseStream());
         }
-
         public ObservableCollection<Item> GetFTPFileList(Item diritem)
         {
             if (File.Exists("ftp_errors.txt"))
@@ -238,165 +238,173 @@ namespace LaExplorer.Code
                 return new ObservableCollection<Item>();
             }
         }
+        #endregion Get items from Ftp server
 
+        #region Parsing answer from server
         private Item ParseUnixFTPStyleString(string line)
         {
-            //b Block special file.
-            //c Character special file.
-            //d Directory.
-            //l Symbolic link.
-            //s Socket link.
-            //p FIFO.
-            //- Regular file.
-
-            Item fresult_line = null;
-
-            Regex regex3 = new Regex(@"^(?<dir>[\-ld])(?<permission>([\-r][\-w][\-xs]){3})\+?\s+(?<filecode>\d+)\s+(?<owner>(\w+))\s+(?<group>(\w+))\s+(?<size>\d+)\s+(?<timestamp>\w+\s+\d+\s+\d{2}.?\d{2})\s+(?<name>.+)",
-                               RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace);
-            Regex regex_MMM_yyyy = new Regex(@"(?<month>\w{3})\s+(?<day>\d{1,2})\s+(?<year>\d{4})");
-            Regex regex_MMM_dd_hhmi = new Regex(@"(?<month>\w{3})\s+(?<day>\d{1,2})\s+(?<hour>\d{1,2}):(?<minute>\d{1,2})");
-            if (line != null && (regex3.IsMatch(line)))
+            try
             {
-                fresult_line = new Item();
-                if (regex3.Split(line)[regex3.GroupNumberFromName("dir")] == "d")
-                {
-                    fresult_line.Type = FileTypes.FOLDER;
-                }
-                else if (regex3.Split(line)[regex3.GroupNumberFromName("dir")] == "l")
-                {
-                    fresult_line.Type = FileTypes.FTPLINK;
-                }
-                else
-                    fresult_line.Type = FileTypes.FILE;
-                fresult_line.sName = regex3.Split(line)[regex3.GroupNumberFromName("name")];
-                try
-                {
-                    fresult_line.lSize = Convert.ToInt64(regex3.Split(line)[regex3.GroupNumberFromName("size")]);
-                }
-                catch
-                {
-                    fresult_line.lSize = 0;
-                }
+                //b Block special file.
+                //c Character special file.
+                //d Directory.
+                //l Symbolic link.
+                //s Socket link.
+                //p FIFO.
+                //- Regular file.
 
-                string timestamp = regex3.Split(line)[regex3.GroupNumberFromName("timestamp")];
-                //Define Date
-                if (regex_MMM_yyyy.IsMatch(timestamp))
-                {
-                    int year = Convert.ToInt16(regex_MMM_yyyy.Split(timestamp)[regex_MMM_yyyy.GroupNumberFromName("year")].Trim());
-                    int month = MMM2MM(regex_MMM_yyyy.Split(timestamp)[regex_MMM_yyyy.GroupNumberFromName("month")].Trim());
-                    int day = Convert.ToInt16(regex_MMM_yyyy.Split(timestamp)[regex_MMM_yyyy.GroupNumberFromName("day")].Trim());
-                    fresult_line.dDate = new DateTime(year, 01, day);
-                }
+                Item fresult_line = null;
 
-                if (regex_MMM_dd_hhmi.IsMatch(timestamp))
+                Regex regex3 = new Regex(@"^(?<dir>[\-ld])(?<permission>([\-r][\-w][\-xs]){3})\+?\s+(?<filecode>\d+)\s+(?<owner>(\w+))\s+(?<group>(\w+))\s+(?<size>\d+)\s+(?<timestamp>\w+\s+\d+\s+\d{2}.?\d{2})\s+(?<name>.+)",
+                                   RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace);
+                Regex regex_MMM_yyyy = new Regex(@"(?<month>\w{3})\s+(?<day>\d{1,2})\s+(?<year>\d{4})");
+                Regex regex_MMM_dd_hhmi = new Regex(@"(?<month>\w{3})\s+(?<day>\d{1,2})\s+(?<hour>\d{1,2}):(?<minute>\d{1,2})");
+                if (line != null && (regex3.IsMatch(line)))
                 {
-                    int month = MMM2MM(regex_MMM_dd_hhmi.Split(timestamp)[regex_MMM_dd_hhmi.GroupNumberFromName("month")].Trim());
-                    int year = month > DateTime.Now.Month ? DateTime.Now.Year - 1 : DateTime.Now.Year;
-                    int day = Convert.ToInt16(regex_MMM_dd_hhmi.Split(timestamp)[regex_MMM_dd_hhmi.GroupNumberFromName("day")].Trim());
-                    int hour = Convert.ToInt16(regex_MMM_dd_hhmi.Split(timestamp)[regex_MMM_dd_hhmi.GroupNumberFromName("hour")].Trim());
-                    int minute = Convert.ToInt16(regex_MMM_dd_hhmi.Split(timestamp)[regex_MMM_dd_hhmi.GroupNumberFromName("minute")].Trim());
-                    fresult_line.dDate = new DateTime(year, month, day, hour, minute, 0);
+                    fresult_line = new Item();
+                    if (regex3.Split(line)[regex3.GroupNumberFromName("dir")] == "d")
+                    {
+                        fresult_line.Type = FileTypes.FOLDER;
+                    }
+                    else if (regex3.Split(line)[regex3.GroupNumberFromName("dir")] == "l")
+                    {
+                        fresult_line.Type = FileTypes.FTPLINK;
+                    }
+                    else
+                        fresult_line.Type = FileTypes.FILE;
+                    fresult_line.sName = regex3.Split(line)[regex3.GroupNumberFromName("name")];
+                    try
+                    {
+                        fresult_line.lSize = Convert.ToInt64(regex3.Split(line)[regex3.GroupNumberFromName("size")]);
+                    }
+                    catch
+                    {
+                        fresult_line.lSize = 0;
+                    }
+
+                    string timestamp = regex3.Split(line)[regex3.GroupNumberFromName("timestamp")];
+                    //Define Date
+                    if (regex_MMM_yyyy.IsMatch(timestamp))
+                    {
+                        int year = Convert.ToInt16(regex_MMM_yyyy.Split(timestamp)[regex_MMM_yyyy.GroupNumberFromName("year")].Trim());
+                        int month = MMM2MM(regex_MMM_yyyy.Split(timestamp)[regex_MMM_yyyy.GroupNumberFromName("month")].Trim());
+                        int day = Convert.ToInt16(regex_MMM_yyyy.Split(timestamp)[regex_MMM_yyyy.GroupNumberFromName("day")].Trim());
+                        fresult_line.dDate = new DateTime(year, 01, day);
+                    }
+
+                    if (regex_MMM_dd_hhmi.IsMatch(timestamp))
+                    {
+                        int month = MMM2MM(regex_MMM_dd_hhmi.Split(timestamp)[regex_MMM_dd_hhmi.GroupNumberFromName("month")].Trim());
+                        int year = month > DateTime.Now.Month ? DateTime.Now.Year - 1 : DateTime.Now.Year;
+                        int day = Convert.ToInt16(regex_MMM_dd_hhmi.Split(timestamp)[regex_MMM_dd_hhmi.GroupNumberFromName("day")].Trim());
+                        int hour = Convert.ToInt16(regex_MMM_dd_hhmi.Split(timestamp)[regex_MMM_dd_hhmi.GroupNumberFromName("hour")].Trim());
+                        int minute = Convert.ToInt16(regex_MMM_dd_hhmi.Split(timestamp)[regex_MMM_dd_hhmi.GroupNumberFromName("minute")].Trim());
+                        fresult_line.dDate = new DateTime(year, month, day, hour, minute, 0);
+                    }
                 }
+                return fresult_line;
             }
-            return fresult_line;
+            catch { return null; }
         }
-
         private Item ParseWindowsFTPStyleString(string line)
         {
-            //Windows IIS FTP server
-            //07-29-13  10:40PM       <DIR>          Apps
-            //05-25-13  03:02AM       <DIR>          aspnet_client
-            //07-28-13  04:33PM       <DIR>          Books
-            //03-20-13  08:10PM       <DIR>          Education
-            //07-27-13  11:14PM       <DIR>          Films
-            //03-14-12  11:45PM       <DIR>          Games
-            //02-20-12  10:32PM       <DIR>          Iphone
-            //07-15-13  10:35AM       <DIR>          Music
-            //03-20-13  08:06PM       <DIR>          Sport
-            //07-22-13  01:59PM       <DIR>          TV Shows
-            //07-30-13  10:34PM       <DIR>          _torrents
-            Item fresult_line = new Item();
-
-            // The segments is like "12-13-10",  "", "12:41PM", "", "","", "", 
-            // "", "", "<DIR>", "", "", "", "", "", "", "", "", "", "Folder", "A". 
-            string[] segments = line.Split(' ');
-
-            int index = 0;
-
-            // The date segment is like "12-13-10" instead of "12-13-2010" if Four-digit years 
-            // is not checked in IIS. 
-            string dateSegment = segments[index];
-            string[] dateSegments = dateSegment.Split(new char[] { '-' },
-                StringSplitOptions.RemoveEmptyEntries);
-
-            int month = int.Parse(dateSegments[0]);
-            int day = int.Parse(dateSegments[1]);
-            int year = int.Parse(dateSegments[2]);
-
-            // If year >=50 and year <100, then  it means the year 19** 
-            if (year >= 50 && year < 100)
+            try
             {
-                year += 1900;
-            }
+                //Windows IIS FTP server
+                //07-29-13  10:40PM       <DIR>          Apps
+                //05-25-13  03:02AM       <DIR>          aspnet_client
+                //07-28-13  04:33PM       <DIR>          Books
+                //03-20-13  08:10PM       <DIR>          Education
+                //07-27-13  11:14PM       <DIR>          Films
+                //03-14-12  11:45PM       <DIR>          Games
+                //02-20-12  10:32PM       <DIR>          Iphone
+                //07-15-13  10:35AM       <DIR>          Music
+                //03-20-13  08:06PM       <DIR>          Sport
+                //07-22-13  01:59PM       <DIR>          TV Shows
+                //07-30-13  10:34PM       <DIR>          _torrents
+                Item fresult_line = new Item();
 
-            // If year <50, then it means the year 20** 
-            else if (year < 50)
-            {
-                year += 2000;
-            }
+                // The segments is like "12-13-10",  "", "12:41PM", "", "","", "", 
+                // "", "", "<DIR>", "", "", "", "", "", "", "", "", "", "Folder", "A". 
+                string[] segments = line.Split(' ');
 
-            // Skip the empty segments. 
-            while (segments[++index] == string.Empty) { }
+                int index = 0;
 
-            // The time segment. 
-            string timesegment = segments[index];
+                // The date segment is like "12-13-10" instead of "12-13-2010" if Four-digit years 
+                // is not checked in IIS. 
+                string dateSegment = segments[index];
+                string[] dateSegments = dateSegment.Split(new char[] { '-' },
+                    StringSplitOptions.RemoveEmptyEntries);
 
-            fresult_line.dDate = DateTime.Parse(string.Format("{0}-{1}-{2} {3}",
-                year, month, day, timesegment));
+                int month = int.Parse(dateSegments[0]);
+                int day = int.Parse(dateSegments[1]);
+                int year = int.Parse(dateSegments[2]);
 
-            // Skip the empty segments. 
-            while (segments[++index] == string.Empty) { }
-
-            // The size or directory segment. 
-            // If this segment is "<DIR>", then it means a directory, else it means the 
-            // file size. 
-            string sizeOrDirSegment = segments[index];
-            fresult_line.Type = sizeOrDirSegment.Equals("<DIR>",StringComparison.OrdinalIgnoreCase) ? FileTypes.FOLDER : FileTypes.FILE;
-
-            // If this fileSystem is a file, then the size is larger than 0.  
-            if (fresult_line.Type != FileTypes.FOLDER)
-            {
-                fresult_line.lSize = long.Parse(sizeOrDirSegment);
-            }
-
-            // Skip the empty segments. 
-            while (segments[++index] == string.Empty) { }
-
-            // Calculate the index of the file name part in the original string. 
-            int filenameIndex = 0;
-
-            for (int i = 0; i < index; i++)
-            {
-                // "" represents ' ' in the original string. 
-                if (segments[i] == string.Empty)
+                // If year >=50 and year <100, then  it means the year 19** 
+                if (year >= 50 && year < 100)
                 {
-                    filenameIndex += 1;
+                    year += 1900;
                 }
-                else
-                {
-                    filenameIndex += segments[i].Length + 1;
-                }
-            }
-            // The file name may include many segments because the name can contain ' '.           
-            fresult_line.sName = line.Substring(filenameIndex).Trim();
 
-            return fresult_line;
+                // If year <50, then it means the year 20** 
+                else if (year < 50)
+                {
+                    year += 2000;
+                }
+
+                // Skip the empty segments. 
+                while (segments[++index] == string.Empty) { }
+
+                // The time segment. 
+                string timesegment = segments[index];
+
+                fresult_line.dDate = DateTime.Parse(string.Format("{0}-{1}-{2} {3}",
+                    year, month, day, timesegment));
+
+                // Skip the empty segments. 
+                while (segments[++index] == string.Empty) { }
+
+                // The size or directory segment. 
+                // If this segment is "<DIR>", then it means a directory, else it means the 
+                // file size. 
+                string sizeOrDirSegment = segments[index];
+                fresult_line.Type = sizeOrDirSegment.Equals("<DIR>", StringComparison.OrdinalIgnoreCase) ? FileTypes.FOLDER : FileTypes.FILE;
+
+                // If this fileSystem is a file, then the size is larger than 0.  
+                if (fresult_line.Type != FileTypes.FOLDER)
+                {
+                    fresult_line.lSize = long.Parse(sizeOrDirSegment);
+                }
+
+                // Skip the empty segments. 
+                while (segments[++index] == string.Empty) { }
+
+                // Calculate the index of the file name part in the original string. 
+                int filenameIndex = 0;
+
+                for (int i = 0; i < index; i++)
+                {
+                    // "" represents ' ' in the original string. 
+                    if (segments[i] == string.Empty)
+                    {
+                        filenameIndex += 1;
+                    }
+                    else
+                    {
+                        filenameIndex += segments[i].Length + 1;
+                    }
+                }
+                // The file name may include many segments because the name can contain ' '.           
+                fresult_line.sName = line.Substring(filenameIndex).Trim();
+
+                return fresult_line;
+            }
+            catch { return null; }
         } 
-
         private static FTPStyle GetFTPStyle(string recordString)
         {
             Regex regex = new System.Text.RegularExpressions.Regex(@"^[d-]([r-][w-][x-]){3}$");
-            string header = recordString.Substring(0, 10);
+            string header = recordString.Substring(0, Math.Min(recordString.Length, 10));
             // If the style is UNIX, then the header is like "drwxrwxrwx". 
             if (regex.IsMatch(header))
             {
@@ -407,6 +415,7 @@ namespace LaExplorer.Code
                 return FTPStyle.WINDOWS;
             }
         }
+        #endregion Parsing answer from server
 
         public void DefineIcons(IEnumerable<Item> items, TaskScheduler scheduler)
         {
@@ -414,7 +423,24 @@ namespace LaExplorer.Code
 
         public Stream GetReadStream(Item item)
         {
-            return null;
+            string dir = "";
+            string user = "";
+            string password = "";
+            bool passivemode = false;
+            dir = item.Parent.Host + "//%2f" + item.sFullName;
+            user = item.Parent.User;
+            password = item.Parent.Password;
+            passivemode = (bool)item.Parent.PassiveMode;
+            if (dir.IndexOf("ftp://") != 1)
+                dir = "ftp://" + dir;
+            FtpWebRequest reqFTP = (FtpWebRequest)FtpWebRequest.Create(new Uri(dir));
+            reqFTP.UseBinary = true;
+            reqFTP.Credentials = new NetworkCredential(user, password);
+            reqFTP.Method = WebRequestMethods.Ftp.DownloadFile;
+            reqFTP.UsePassive = (bool)passivemode;
+            reqFTP.Proxy = null;
+            WebResponse response = reqFTP.GetResponse();
+            return response.GetResponseStream();
         }
 
         public Stream GetWriteStream(ParentItem Destination, Item item)

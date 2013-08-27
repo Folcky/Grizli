@@ -195,6 +195,7 @@ namespace LaExplorer.Views
                 if (old_source.iSource != null && old_source.iSource.Count()>0)
                 {
                     lvList.ItemsSource = old_source.iSource;
+                    appdata_watcher.EnableRaisingEvents = true;
                     this.ListItems = old_source;
                     if (sbPanelInfo.HasItems == true)
                         sbPanelInfo.Items[0] = "";
@@ -228,6 +229,7 @@ namespace LaExplorer.Views
                 if (old_source.iSource != null)
                 {
                     lvList.ItemsSource = old_source.iSource;
+                    appdata_watcher.EnableRaisingEvents = false;
                     this.ListItems = old_source;
                     //if (sbPanelInfo.HasItems == true)
                     //    sbPanelInfo.Items[0] = ac.GetItemsStatus();
@@ -239,40 +241,6 @@ namespace LaExplorer.Views
                 }
 
 
-                //    if (senderitem.Type == FileTypes.FOLDER || senderitem.Type == FileTypes.FTPLINK)
-                //    {
-                //        IAccessor ac = AccessorFactory.GetAccessor(accessors, senderitem.Parent.Protocol);
-                //        Source old_source = ac.GetItems(senderitem);
-                //        if (old_source.iSource != null)
-                //        {
-                //            s = old_source;
-                //            DelegateGetImagesForItems _updateimages = GetImagesForItems;
-                //            Application.Current.Dispatcher.BeginInvoke(_updateimages, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-
-                //            if (s.iSource != null)
-                //            {
-                //                iSource = s.iSource;
-                //                lvList.ItemsSource = iSource;
-                //                if (s.Connection_description.Path != null && s.Connection_description.Path != "" && s.Connection_description.Protocol == Protocols.LOCAL)
-                //                {
-                //                    appdata_watcher.EnableRaisingEvents = false;
-                //                    //usb_watcher.EnableRaisingEvents = false;
-                //                }
-                //                else
-                //                {
-                //                    appdata_watcher.EnableRaisingEvents = true;
-                //                    //usb_watcher.EnableRaisingEvents = true;
-                //                }
-                                // this.ListItems = s;
-                //                if (sbPanelInfo.HasItems == true)
-                //                    sbPanelInfo.Items[0] = ac.GetItemsStatus();
-                //                else
-                //                    sbPanelInfo.Items.Add(iSource.Count());
-                //            }
-                //        }
-                //    }
-                //    else
-                //    {
                 //        try
                 //        {
                 //            DelegateStartProccess _startproccess = StartProccess;
@@ -699,43 +667,9 @@ namespace LaExplorer.Views
                 Stream read_stream = ac_reader.GetReadStream(item);
                 Stream write_stream = ac_writer.GetWriteStream(whattodo.Destination, item);
 
-                //UPLOAD FTP
-                if (item.Parent.Protocol == Protocols.LOCAL && item.Type == FileTypes.FILE && whattodo.Destination.Protocol == Protocols.FTP)
+                //COPY FILE
+                if (item.Type == FileTypes.FILE)
                 {
-                    write_stream = GetFTPStream(item, whattodo.Destination, WebRequestMethods.Ftp.UploadFile);
-                    read_stream = File.OpenRead(item.sFullName);
-                    FileCopy_proccessor(sender as BackgroundWorker, read_stream, write_stream, item);
-                }
-
-                //DOWNLOAD FTP
-                if (item.Parent.Protocol == Protocols.FTP && item.Type == FileTypes.FILE && whattodo.Destination.Protocol == Protocols.LOCAL)
-                {
-                    read_stream = GetFTPStream(item, whattodo.Destination, WebRequestMethods.Ftp.DownloadFile);
-                    write_stream = new FileStream(whattodo.Destination.Path + @"\" + item.sName, FileMode.Create);
-                    FileCopy_proccessor(sender as BackgroundWorker, read_stream, write_stream, item);
-                }
-
-                //UPLOAD NETWORK FILE
-                if (item.Parent.Protocol == Protocols.LOCAL && item.Type == FileTypes.FILE && whattodo.Destination.Protocol == Protocols.NETWORK)
-                {
-                    read_stream = File.Open(item.sFullName, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    write_stream = GetNETWORKStream(new Item() { Parent = whattodo.Destination, sFullName = whattodo.Destination.Path + @"\" + item.sName }, FileAccess.Write);
-                    FileCopy_proccessor(sender as BackgroundWorker, read_stream, write_stream, item);
-                }
-
-                //DOWNLOAD NETWORK FILE
-                if (item.Parent.Protocol == Protocols.NETWORK && item.Type == FileTypes.FILE && whattodo.Destination.Protocol == Protocols.LOCAL)
-                {
-                    read_stream = GetNETWORKStream(item, FileAccess.Read);
-                    write_stream = new FileStream(whattodo.Destination.Path + @"\" + item.sName, FileMode.Create);
-                    FileCopy_proccessor(sender as BackgroundWorker, read_stream, write_stream, item);
-                }
-
-                //COPY FILE LOCALLY
-                if (item.Parent.Protocol == Protocols.LOCAL && item.Type == FileTypes.FILE && whattodo.Destination.Protocol == Protocols.LOCAL)
-                {
-                    read_stream = File.Open(item.sFullName, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    write_stream = File.Open(whattodo.Destination.Path + @"\" + item.sName, FileMode.Create, FileAccess.Write, FileShare.None);
                     FileCopy_proccessor(sender as BackgroundWorker, read_stream, write_stream, item);
                 }
 

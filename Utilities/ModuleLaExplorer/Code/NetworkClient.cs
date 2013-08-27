@@ -249,12 +249,18 @@ namespace LaExplorer.Code
 
         public Stream GetReadStream(Item item)
         {
-            return File.Open(@"\\" + item.Parent.Host + @"\" + item.sFullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using (Impersonation accesschecker = new Impersonation(item.Parent.Domain, item.Parent.User, item.Parent.Password))
+            {
+                return File.Open(@"\\" + item.Parent.Host + @"\" + item.sFullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            }
         }
 
         public Stream GetWriteStream(ParentItem Destination, Item item)
         {
-            return File.Open(@"\\" + item.Parent.Host + @"\" + item.sFullName, FileMode.Create);
+            using (Impersonation accesschecker = new Impersonation(item.Parent.Domain, item.Parent.User, item.Parent.Password))
+            {
+                return File.Open(@"\\" + item.Parent.Host + @"\" + item.sFullName, FileMode.Create);
+            }
         }
 
         public string GetItemsStatus()
